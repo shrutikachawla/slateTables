@@ -1,0 +1,34 @@
+.columnDragger {
+  position: absolute;
+  top: 0px;
+  left: -3px;
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+  user-select: none;
+}
+
+.columnDraggerHint {
+  position: absolute;
+  top: 0px;
+  left: -3px;
+  width: 1px;
+  height: 100%;
+  background: rgb(102, 136, 238);
+  cursor: col-resize;
+  user-select: none;
+}
+
+.tableCell {
+  ::selection {
+    background: transparent !important;
+  }
+}
+
+.singleCell {
+  border: 1px solid red;
+  ::selection {
+    background: #b8b8b88c;
+    border: 1px solid red;
+  }
+}
