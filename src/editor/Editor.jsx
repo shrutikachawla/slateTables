@@ -1,18 +1,10 @@
 import React from "react";
 import { createEditor, Node } from "slate";
-import {
-  Editable,
-  withReact,
-  Slate,
-  RenderElementProps,
-  RenderLeafProps,
-} from "slate-react";
+import { Editable, withReact, Slate } from "slate-react";
 import { DefaultElement } from "./elements";
 import TableElement from "./elements/table";
 import TableCellElement from "./elements/table-cell";
 import TableRowElement from "./elements/table-row";
-import { SelectedCellsProvider } from "../tables/contexts/SelectedCellsContext";
-import { TableSelectionProvider } from "../tables/contexts/TableSelectionContext";
 import { Toolbar } from "./Toolbar";
 import { onKeyDown } from "./onKeyDown";
 
@@ -60,21 +52,17 @@ export function Editor(props) {
   const editor = React.useMemo(() => withReact(createEditor()), []);
   window.editor = editor;
   return (
-    <TableSelectionProvider editor={editor}>
-      <SelectedCellsProvider editor={editor}>
-        <Slate editor={editor} value={value} onChange={onChange}>
-          <Toolbar open={true} />
-          <Editable
-            renderElement={renderElement}
-            renderLeaf={renderLeaf}
-            onKeyDown={(event) => {
-              onKeyDown(editor, event);
-            }}
-            {...other}
-          />
-        </Slate>
-      </SelectedCellsProvider>
-    </TableSelectionProvider>
+    <Slate editor={editor} value={value} onChange={onChange}>
+      <Toolbar open={true} />
+      <Editable
+        renderElement={renderElement}
+        renderLeaf={renderLeaf}
+        onKeyDown={(event) => {
+          onKeyDown(editor, event);
+        }}
+        {...other}
+      />
+    </Slate>
   );
 }
 

@@ -1,4 +1,3 @@
-import logo from "./logo.svg";
 import "./App.css";
 import React from "react";
 import {
@@ -10,20 +9,24 @@ import {
   Typography,
 } from "@material-ui/core";
 import uniqid from "uniqid";
+import "antd/dist/antd.css";
 import { makeStyles } from "@material-ui/core/styles";
-import theme from './theme';
-import { Editor, Node } from './editor';
+import theme from "./theme";
+import { Editor } from "./editor";
 
 const useStyles = makeStyles((theme) => ({
   root: {
     paddingTop: theme.spacing(10),
     paddingBottom: theme.spacing(4),
+    marginLeft: theme.spacing(40),
   },
   title: {
     margin: theme.spacing(0, 2, 2),
   },
   card: {
-    marginBottom: theme.spacing(2),
+    marginBottom: theme.spacing(10),
+    width: 800,
+    height: 1400,
   },
 }));
 
@@ -41,6 +44,43 @@ const initialValue = [
     type: "table",
     id: uniqid(),
     children: [
+      {
+        type: "table-row",
+        id: uniqid(),
+        children: [
+          {
+            type: "table-cell",
+            id: uniqid(),
+
+            children: [{ text: "COLSPAN Demo1" }],
+          },
+          {
+            type: "table-cell",
+            id: uniqid(),
+            children: [{ text: "Dog Demo1", bold: true }],
+          },
+          {
+            type: "table-cell",
+            id: uniqid(),
+            children: [{ text: "Cat Demo1", bold: true }],
+          },
+          {
+            type: "table-cell",
+            id: uniqid(),
+            children: [{ text: "Last Col 1 Demo1", bold: true }],
+          },
+          {
+            type: "table-cell",
+            id: uniqid(),
+            children: [{ text: "Last Col 2 Demo1", bold: true }],
+          },
+          {
+            type: "table-cell",
+            id: uniqid(),
+            children: [{ text: "Last Col 6", bold: true }],
+          },
+        ],
+      },
       {
         type: "table-row",
         id: uniqid(),
@@ -67,6 +107,11 @@ const initialValue = [
             id: uniqid(),
             children: [{ text: "Last Col 1", bold: true }],
           },
+          {
+            type: "table-cell",
+            id: uniqid(),
+            children: [{ text: "Last Col 6", bold: true }],
+          },
         ],
       },
       {
@@ -88,6 +133,11 @@ const initialValue = [
             type: "table-cell",
             id: uniqid(),
             children: [{ text: "Last Col 2", bold: true }],
+          },
+          {
+            type: "table-cell",
+            id: uniqid(),
+            children: [{ text: "Last Col 6", bold: true }],
           },
         ],
       },
@@ -115,6 +165,11 @@ const initialValue = [
             id: uniqid(),
             children: [{ text: "Last Col 3", bold: true }],
           },
+          {
+            type: "table-cell",
+            id: uniqid(),
+            children: [{ text: "Last Col 6", bold: true }],
+          },
         ],
       },
       {
@@ -139,6 +194,8 @@ const initialValue = [
           {
             type: "table-cell",
             id: uniqid(),
+            rowspan: 2,
+            colspan: 2,
             children: [{ text: "Last Node" }],
           },
           {
@@ -146,6 +203,11 @@ const initialValue = [
             id: uniqid(),
             children: [{ text: "Last Col 4", bold: true }],
           },
+          // {
+          //   type: "table-cell",
+          //   id: uniqid(),
+          //   children: [{ text: "Last Col 6", bold: true }],
+          // },
         ],
       },
       {
@@ -172,11 +234,16 @@ const initialValue = [
             id: uniqid(),
             children: [{ text: "Fine" }],
           },
-          {
-            type: "table-cell",
-            id: uniqid(),
-            children: [{ text: "Last Col 5", bold: true }],
-          },
+          // {
+          //   type: "table-cell",
+          //   id: uniqid(),
+          //   children: [{ text: "Last Col 5", bold: true }],
+          // },
+          // {
+          //   type: "table-cell",
+          //   id: uniqid(),
+          //   children: [{ text: "Last Col 6", bold: true }],
+          // },
         ],
       },
     ],
@@ -193,7 +260,7 @@ const initialValue = [
 ];
 
 function App() {
-  const[value, setValue] = React.useState(initialValue);
+  const [value, setValue] = React.useState(initialValue);
   const s = useStyles();
 
   return (

@@ -5,6 +5,7 @@ export function computeMap(table) {
   if (table.type !== "table") {
     throw new Error("Not a table node" + table.type);
   }
+  console.log("Calculating table map");
   // Create the map of ids
   // For all rows
   let width = findWidth(table),
@@ -29,7 +30,7 @@ export function computeMap(table) {
           (problems || (problems = [])).push({
             type: "overlong_rowspan",
             pos,
-            n: rowspan - h
+            n: rowspan - h,
           });
           break;
         }
@@ -41,7 +42,7 @@ export function computeMap(table) {
               type: "collision",
               row,
               pos,
-              n: colspan - w
+              n: colspan - w,
             });
           let colW = colwidth && colwidth[w];
           if (colW) {

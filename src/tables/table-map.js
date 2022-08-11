@@ -2,6 +2,35 @@
 import { Rect } from "./rect";
 import { computeMap } from "./utils";
 
+let readFromCache, addToCache;
+// Prefer using a weak map to cache table maps. Fall back on a
+// fixed-size cache if that's not supported.
+if (typeof WeakMap != "undefined") {
+  // eslint-disable-next-line
+  let cache = new WeakMap();
+  readFromCache = (key) => cache.get(key);
+  addToCache = (key, value) => {
+    cache.set(key, value);
+    return value;
+  };
+} else {
+  let cache = [],
+    cacheSize = 10,
+    cachePos = 0;
+  readFromCache = (key) => {
+    for (let i = 0; i < cache.length; i += 2) {
+      if (cache[i] == key) {
+        return cache[i + 1];
+      }
+    }
+  };
+  addToCache = (key, value) => {
+    if (cachePos == cacheSize) cachePos = 0;
+    cache[cachePos++] = key;
+    return (cache[cachePos++] = value);
+  };
+}
+
 export class TableMap {
   constructor(width, height, map, problems) {
     this.width = width;
@@ -10,6 +39,8 @@ export class TableMap {
     this.problems = problems;
   }
 
+  // :: (number) → Rect
+  // Find the dimensions of the cell at the given position.
   findCell(pos) {
     for (let i = 0; i < this.map.length; i++) {
       let curPos = this.map[i];
@@ -31,6 +62,8 @@ export class TableMap {
     throw new RangeError("No cell with offset " + pos + " found");
   }
 
+  // :: (number, number) → Rect
+  // Get the rectangle spanning the two given cells.
   rectBetween(a, b) {
     let {
       left: leftA,
@@ -52,6 +85,9 @@ export class TableMap {
     );
   }
 
+  // :: (Rect) → [number]
+  // Return the position of all cells that have the top left corner in
+  // the given rectangle.
   cellsInRect(rect) {
     let result = [],
       seen = {};
@@ -71,6 +107,9 @@ export class TableMap {
     return result;
   }
 
+  // :: (number, string, number) → ?number
+  // Find the next cell in the given direction, starting from the cell
+  // at `pos`, if any.
   nextCell(pos, axis, dir) {
     let { left, right, top, bottom } = this.findCell(pos);
     if (axis == "horiz") {
@@ -82,7 +121,36 @@ export class TableMap {
     }
   }
 
+  // :: (number, number, Node) → number
+  // Return the position at which the cell at the given row and column
+  // starts, or would start, if a cell started there.
+  positionAt(row, col, table) {
+    for (let i = 0, rowStart = 0; ; i++) {
+      let rowEnd = rowStart + table.children.length;
+      if (i == row) {
+        let index = col + row * this.width,
+          rowEndIndex = (row + 1) * this.width;
+        // Skip past cells from previous rows (via rowspan)
+        while (index < rowEndIndex && this.map[index] < rowStart) index++;
+        return index == rowEndIndex ? -1 : this.map[index];
+      }
+      rowStart = rowEnd;
+    }
+  }
+
+  // :: (number) → number
+  // Find the left side of the cell at the given position.
+  colCount(pos) {
+    for (let i = 0; i < this.map.length; i++)
+      if (this.map[i] == pos) return i % this.width;
+    throw new RangeError("No cell with offset " + pos + " found");
+  }
+
   static get(table) {
-    return computeMap(table);
+    return readFromCache(table) || addToCache(table, computeMap(table));
+  }
+
+  static recalculateTableMap(table) {
+    return addToCache(table, computeMap(table));
   }
 }

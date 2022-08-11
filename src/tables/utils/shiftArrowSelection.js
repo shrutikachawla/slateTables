@@ -1,51 +1,43 @@
-import { Editor, Transforms } from "slate";
+import { Editor } from "slate";
+import { TableSelection } from "../table-selection";
 import { atEndOfCell } from "./atEndOfCell";
 import { nextCell } from "./nextCell";
 
 export function shiftArrowSelection(event, editor, axis, dir) {
-  const { selectedCells = [] } = editor;
-  let posId = selectedCells[0];
-  //If selection spans a single cell
-  if (selectedCells.length === 1) {
-    //Check if selection covers the end edge of cell
-    let end = atEndOfCell(editor, axis, dir);
-    if (end == null) return false;
-    // const [anchorCellNodeEntry] = Array.from(
-    //   Editor.nodes(editor, {
-    //     match: (n) => n.id === posId,
-    //     at: []
-    //   })
-    // );
-    // Transforms.select(editor, anchorCellNodeEntry[1]);
+  let { tableSelection = null } = editor;
+  window.Editor = Editor;
+
+  let anchorCellNodeEntry;
+
+  if (!tableSelection) {
+    [anchorCellNodeEntry] = Editor.nodes(editor, {
+      match: (n) => n.type === "table-cell",
+      at: editor.selection,
+    });
+    //If selection spans a single cell
+    if (anchorCellNodeEntry) {
+      //Check if selection covers the end edge of cell
+      let end = atEndOfCell(editor, anchorCellNodeEntry[0].id, axis, dir);
+      if (end == null) return false;
+      tableSelection = new TableSelection(editor, {
+        anchorCellPath: anchorCellNodeEntry[1],
+      });
+    }
   }
 
-  // if (dir < 0) posId = selectedCells[0];
-  // else posId = selectedCells[selectedCells.length - 1];
-  let focusCellId = nextCell(editor, posId, axis, dir);
-  console.log("Focus cell id", focusCellId);
+  let focusCellId = nextCell(editor, tableSelection.focusCell[0].id, axis, dir);
   if (!focusCellId) return false;
-  const [focusCellNodeEntry] = Array.from(
-    Editor.nodes(editor, {
-      match: (n) => n.id === focusCellId,
-      at: []
-    })
-  );
-  const [focusPoint] = Editor.edges(editor, focusCellNodeEntry[1]);
+  const [focusCellNodeEntry] = Editor.nodes(editor, {
+    match: (n) => n.id === focusCellId,
+    at: [],
+  });
+
+  if (!focusCellNodeEntry) return;
+
   event.preventDefault();
-
-  console.log("Focus point", { focusPoint });
-  Transforms.setSelection(editor, { focus: focusPoint });
-  // if (dir < 0) {
-  //   if(selectedCells)
-  // }
-  // } else {
-  //   if(selectedCells.length === 1){
-
-  // }
-  // Transforms.select(editor, {
-  //   anchor: editor.selection.anchor,
-  //   focus: focusPoint
-  // });
-  // }
+  new TableSelection(editor, {
+    anchorCellPath: tableSelection.anchorCell[1],
+    focusCellPath: focusCellNodeEntry?.[1],
+  });
   return true;
 }

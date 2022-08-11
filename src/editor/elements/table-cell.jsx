@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import styles from "./table-cell.less";
 import { blendColors } from "../../utils/blendColors";
-import { useSelectedCells } from "../../tables/contexts/SelectedCellsContext";
 import { ReactEditor, useSlate } from "slate-react";
-import { handleMouseDown } from "../onMouseDown";
-import { useTableSelectionDispatchState } from "../../tables/contexts/TableSelectionContext";
+import { handleMouseDown } from "../../tables/onMouseDown";
+import { Menu, Dropdown } from "antd";
+import croveEmitter from "../../utils/crove";
+import { onMenuItemSelect } from "../../tables/onMenuItemSelect";
 
 const TableCellElement = ({ slateElement, attributes, children }) => {
   const editor = useSlate();
@@ -12,16 +13,17 @@ const TableCellElement = ({ slateElement, attributes, children }) => {
   const { rowspan = 1 } = slateElement;
   const [selected, setSelected] = useState(false);
   const [selectionColor, setSelectionColor] = useState("#B8B8B88C");
-  const [selectedCells] = useSelectedCells();
-  const tableSelectionDispatch = useTableSelectionDispatchState();
+  const [selectedCells, setSelectedCells] = useState([]);
+  const [menuSourceCellId, setMenuSourceCellId] = useState(null);
 
   const { id } = slateElement;
   const backgroundColor = slateElement.backgroundColor || "transparent";
-  //
 
-  useEffect(() => {
-    if (selectedCells?.length > 1) {
-      if (selectedCells?.find((value) => value === id)) {
+  function checkSelectedCells(tableSelectionObj = null) {
+    const selectedCellsArr = tableSelectionObj?.selectedCells || [];
+    setSelectedCells(selectedCellsArr);
+    if (selectedCellsArr?.length > 1) {
+      if (selectedCellsArr?.find((value) => value === id)) {
         setSelected(true);
       } else {
         setSelected(false);
@@ -29,7 +31,13 @@ const TableCellElement = ({ slateElement, attributes, children }) => {
     } else {
       setSelected(false);
     }
-  }, [id, selectedCells]);
+  }
+
+  useEffect(() => {
+    croveEmitter.on("changeTableSelection", checkSelectedCells);
+    return () =>
+      croveEmitter.removeListener("changeTableSelection", checkSelectedCells);
+  }, []);
 
   useEffect(() => {
     if (backgroundColor !== "transparent") {
@@ -39,23 +47,69 @@ const TableCellElement = ({ slateElement, attributes, children }) => {
     }
   }, [backgroundColor]);
 
-  return (
-    <td
-      style={{
-        border: "1px solid black",
-        background: selected ? selectionColor : backgroundColor,
+  const menu = (
+    <Menu
+      onClick={(e) => {
+        const { domEvent, key } = e;
+        domEvent.preventDefault();
+        onMenuItemSelect(editor, key, menuSourceCellId);
+        ReactEditor.focus(editor);
       }}
-      {...attributes}
-      colSpan={colspan}
-      rowSpan={rowspan}
-      className={styles.singleCell}
-      onMouseDown={(event) => {
-        const nativeEvent = event.nativeEvent;
-        handleMouseDown(editor, nativeEvent, tableSelectionDispatch);
-      }}
+      contentEditable={false}
     >
-      {children}
-    </td>
+      <Menu.Item key="copy">Copy</Menu.Item>
+      <Menu.Item key="paste">Paste</Menu.Item>
+      <Menu.Divider />
+      <Menu.Item key="merge-cells" disabled={!(selectedCells.length > 1)}>
+        Merge Cells
+      </Menu.Item>
+      <Menu.Item key="unmerge-cells" disabled={selectedCells.length > 1}>
+        Unmerge Cells
+      </Menu.Item>
+      <Menu.Item key="insert-column-left">Insert Column Left</Menu.Item>
+      <Menu.Item key="insert-column-right">Insert Column Right</Menu.Item>
+      <Menu.Item key="insert-row-above">Insert Row Above</Menu.Item>
+      <Menu.Item key="insert-row-below">Insert Row Below</Menu.Item>
+      <Menu.Item key="delete-row">Delete Row</Menu.Item>
+      <Menu.Item key="delete-column">Delete Column</Menu.Item>
+      <Menu.Divider />
+      <Menu.Item key="table-settings">Table Properties</Menu.Item>
+      <Menu.Item key="delete-table">Delete Table</Menu.Item>
+    </Menu>
+  );
+
+  return (
+    <Dropdown overlay={menu} trigger={["contextMenu"]}>
+      <td
+        style={{
+          border: "1px solid black",
+          color: "black",
+          background: selected ? selectionColor : backgroundColor,
+        }}
+        {...attributes}
+        colSpan={colspan}
+        rowSpan={rowspan}
+        onDragStart={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        className={
+          selectedCells.length > 1 ? styles.tableCell : styles.singleCell
+        }
+        onMouseDown={(event) => {
+          const nativeEvent = event.nativeEvent;
+          // If left mouse click
+          if (nativeEvent.which === 1) {
+            handleMouseDown(editor, nativeEvent);
+          }
+        }}
+        onContextMenu={(e) => {
+          setMenuSourceCellId(id);
+        }}
+      >
+        {children}
+      </td>
+    </Dropdown>
   );
 };
 
