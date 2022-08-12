@@ -138,6 +138,20 @@ export class TableMap {
     }
   }
 
+  positionOfPreviousAt(row, col, table) {
+    for (let i = 0, rowStart = 0; ; i++) {
+      let rowEnd = rowStart + table.children.length;
+      if (i == row) {
+        let index = col + row * this.width,
+          rowEndIndex = (row + 1) * this.width;
+        // Skip past cells from previous rows (via rowspan)
+        while (index < rowEndIndex && this.map[index] < rowStart) index++;
+        return this.map[index - 1];
+      }
+      rowStart = rowEnd;
+    }
+  }
+
   // :: (number) → number
   // Find the left side of the cell at the given position.
   colCount(pos) {

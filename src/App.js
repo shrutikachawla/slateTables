@@ -100,6 +100,7 @@ const initialValue = [
           {
             type: "table-cell",
             id: uniqid(),
+            rowspan: 3,
             children: [{ text: "Cat", bold: true }],
           },
           {
@@ -121,12 +122,6 @@ const initialValue = [
           {
             type: "table-cell",
             id: uniqid(),
-            children: [{ text: "4" }],
-          },
-          {
-            type: "table-cell",
-            id: uniqid(),
-            rowspan: 2,
             children: [{ text: "4" }],
           },
           {

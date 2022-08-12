@@ -81,5 +81,6 @@ export function computeMap(table) {
   // for (let i = 0; !badWidths && i < colWidths.length; i += 2)
   //   if (colWidths[i] != null && colWidths[i + 1] < height) badWidths = true;
   // if (badWidths) findBadColWidths(tableMap, colWidths, table);
+  window.tableMap = tableMap;
   return tableMap;
 }
