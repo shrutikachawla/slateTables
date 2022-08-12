@@ -18,3 +18,13 @@ export function setAttr(editor, cellId, key, value) {
   );
   return true;
 }
+
+export function removeColSpan(editor, cellNode, n = 1) {
+  setAttr(editor, cellNode.id, "colspan", (cellNode.colspan || 1) - n);
+  if (cellNode.colwidth) {
+    // result.colwidth = result.colwidth.slice();
+    // result.colwidth.splice(pos, n);
+    // if (!result.colwidth.some((w) => w > 0)) result.colwidth = null;
+  }
+  // return result;
+}

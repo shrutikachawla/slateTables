@@ -19,7 +19,9 @@ export const onMenuItemSelect = (editor, key, cellId) => {
     case "insert-row-below":
       status = addRowAfter(editor, cellId);
       break;
-
+    case "delete-column":
+      status = deleteColumn(editor, cellId);
+      break;
     case "default":
       new TableSelection(editor, null);
       break;
@@ -213,4 +215,50 @@ function addRow(editor, { map, table }, row) {
   Transforms.insertNodes(editor, rowNode, { at: table[1].concat(row) });
   const [modifiedTableNode] = Editor.node(editor, table[1]);
   TableMap.recalculateTableMap(modifiedTableNode);
+}
+
+// :: (EditorState, dispatch: ?(tr: Transaction)) → bool
+// Command function that removes the selected columns from a table.
+function deleteColumn(editor, cellId) {
+  if (!isInTable(editor, cellId)) return false;
+
+  let rect = selectedRect(editor, cellId);
+  if (rect.left == 0 && rect.right == rect.map.width) return false;
+  for (let i = rect.right - 1; ; i--) {
+    removeColumn(editor, rect, i);
+    if (i == rect.left) break;
+    rect.table = Editor.node(editor);
+    rect.map = TableMap.get(rect.table);
+  }
+
+  return true;
+}
+
+function removeColumn(editor, { map, table }, col) {
+  for (let row = 0; row < map.height; ) {
+    let index = row * map.width + col,
+      pos = map.map[index],
+      [[cellNode, cellPath]] = Editor.nodes(editor, {
+        at: [],
+        match: (n) => n.id === pos,
+      });
+    // If this is part of a col-spanning cell
+    if (
+      (col > 0 && map.map[index - 1] == pos) ||
+      (col < map.width - 1 && map.map[index + 1] == pos)
+    ) {
+      const [cellWithColSpan] = Editor.nodes(editor, {
+        match: (n) => n.id === map.map[index],
+        at: [],
+      });
+      Transforms.setNodes(
+        editor,
+        { colspan: cellWithColSpan[0].colspan - 1 },
+        { at: cellWithColSpan[1] }
+      );
+    } else {
+      Transforms.removeNodes(editor, { at: cellPath });
+    }
+    row += cellNode.rowspan || 1;
+  }
 }
