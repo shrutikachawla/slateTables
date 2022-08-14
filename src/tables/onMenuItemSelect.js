@@ -22,6 +22,9 @@ export const onMenuItemSelect = (editor, key, cellId) => {
     case "delete-column":
       status = deleteColumn(editor, cellId);
       break;
+    case "delete-row":
+      status = deleteRow(editor, cellId);
+      break;
     case "default":
       new TableSelection(editor, null);
       break;
@@ -47,6 +50,37 @@ function addRowBefore(editor, cellId) {
   if (!cellId || !isInTable(editor, cellId)) return false;
   let rect = selectedRect(editor, cellId);
   addRow(editor, rect, rect.top);
+  return true;
+}
+
+function deleteColumn(editor, cellId) {
+  if (!isInTable(editor, cellId)) return false;
+  let rect = selectedRect(editor, cellId);
+  if (rect.left == 0 && rect.right == rect.map.width) return false;
+  Editor.withoutNormalizing(editor, () => {
+    for (let i = rect.right - 1; ; i--) {
+      removeColumn(editor, rect, i);
+      if (i == rect.left) break;
+      rect.table = Editor.node(editor, rect.table[1]);
+      rect.map = TableMap.get(rect.table[0]);
+    }
+  });
+  return true;
+}
+
+// Remove the selected rows from a table.
+function deleteRow(editor, cellId) {
+  if (!isInTable(editor, cellId)) return false;
+  let rect = selectedRect(editor, cellId);
+  if (rect.top == 0 && rect.bottom == rect.map.height) return false;
+  Editor.withoutNormalizing(editor, () => {
+    for (let i = rect.bottom - 1; ; i--) {
+      removeRow(editor, rect, i);
+      if (i == rect.top) break;
+      rect.table = Editor.node(editor, rect.table[1]);
+      rect.map = TableMap.get(rect.table[0]);
+    }
+  });
   return true;
 }
 
@@ -217,23 +251,7 @@ function addRow(editor, { map, table }, row) {
   TableMap.recalculateTableMap(modifiedTableNode);
 }
 
-// :: (EditorState, dispatch: ?(tr: Transaction)) → bool
 // Command function that removes the selected columns from a table.
-function deleteColumn(editor, cellId) {
-  if (!isInTable(editor, cellId)) return false;
-
-  let rect = selectedRect(editor, cellId);
-  if (rect.left == 0 && rect.right == rect.map.width) return false;
-  for (let i = rect.right - 1; ; i--) {
-    removeColumn(editor, rect, i);
-    if (i == rect.left) break;
-    rect.table = Editor.node(editor);
-    rect.map = TableMap.get(rect.table);
-  }
-
-  return true;
-}
-
 function removeColumn(editor, { map, table }, col) {
   for (let row = 0; row < map.height; ) {
     let index = row * map.width + col,
@@ -261,4 +279,56 @@ function removeColumn(editor, { map, table }, col) {
     }
     row += cellNode.rowspan || 1;
   }
+}
+
+function removeRow(editor, { map, table }, row) {
+  let rowPos = 0;
+  for (let i = 0; i < row; i++) {
+    const [rowNode] = Editor.node(editor, table[1].concat(i));
+    rowPos += rowNode.children.length;
+  }
+
+  let cellNode, cellPath;
+  for (let col = 0, index = row * map.width; col < map.width; col++, index++) {
+    let pos = map.map[index];
+    const [cell] = Editor.nodes(editor, {
+      match: (n) => n.id === pos,
+      at: [],
+    });
+
+    if (cell) [cellNode, cellPath] = cell;
+    if (row > 0 && pos == map.map[index - map.width]) {
+      // If this cell starts in the row above, simply reduce its rowspan
+      Transforms.setNodes(
+        editor,
+        { rowspan: (cellNode.rowspan || 1) - 1 },
+        { at: cellPath }
+      );
+      col += (cellNode.colspan || 1) - 1;
+    } else if (row < map.width && pos == map.map[index + map.width]) {
+      // Else, if it continues in the row below, it has to be moved down
+      const newCell = {
+        type: "table-cell",
+        children: cellNode?.children || [],
+        rowspan: (cellNode?.rowspan || 1) - 1,
+        colspan: cellNode?.colspan || 1,
+        id: uniqid(),
+      };
+      let newPos = map.positionAt(row + 1, col, table[0]);
+      const [intendedNode] = Editor.nodes(editor, {
+        match: (n) => n.id === newPos,
+        at: [],
+      });
+      let insertionPath = intendedNode[1];
+
+      const insertionIndex =
+        insertionPath[insertionPath.length - 1] == 0
+          ? 0
+          : insertionPath[insertionPath.length - 1] - 1;
+      insertionPath.splice(-1, 1, insertionIndex);
+      Transforms.insertNodes(editor, newCell, { at: insertionPath });
+      col += (cellNode.colspan || 1) - 1;
+    }
+  }
+  Transforms.removeNodes(editor, { at: table[1].concat(row) });
 }

@@ -73,14 +73,6 @@ export function computeMap(table) {
   }
 
   let tableMap = new TableMap(width, height, map, problems);
-  // badWidths = false;
-
-  // For columns that have defined widths, but whose widths disagree
-  // between rows, fix up the cells whose width doesn't match the
-  // computed one.
-  // for (let i = 0; !badWidths && i < colWidths.length; i += 2)
-  //   if (colWidths[i] != null && colWidths[i + 1] < height) badWidths = true;
-  // if (badWidths) findBadColWidths(tableMap, colWidths, table);
   window.tableMap = tableMap;
   return tableMap;
 }
