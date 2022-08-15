@@ -63,8 +63,8 @@ const TableCellElement = ({ slateElement, attributes, children }) => {
       <Menu.Item key="merge-cells" disabled={!(selectedCells.length > 1)}>
         Merge Cells
       </Menu.Item>
-      <Menu.Item key="unmerge-cells" disabled={selectedCells.length > 1}>
-        Unmerge Cells
+      <Menu.Item key="split-cells" disabled={selectedCells.length > 1}>
+        Split Cells
       </Menu.Item>
       <Menu.Item key="insert-column-left">Insert Column Left</Menu.Item>
       <Menu.Item key="insert-column-right">Insert Column Right</Menu.Item>

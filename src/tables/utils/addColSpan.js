@@ -7,7 +7,7 @@ export function addColSpan(editor, cellNode, n = 1) {
     // result.colwidth = result.colwidth.slice();
     // for (let i = 0; i < n; i++) result.colwidth.splice(pos, 0, 0);
   }
-  //   return result;
+  return (cellNode.colspan || 1) + n;
 }
 
 export function setAttr(editor, cellId, key, value) {
