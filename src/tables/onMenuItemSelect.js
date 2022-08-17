@@ -1,4 +1,4 @@
-import { Editor, Path, Transforms } from "slate";
+import { Editor, Node, Path, Transforms } from "slate";
 import uniqid from "uniqid";
 import { TableMap } from "./table-map";
 import { TableSelection } from "./table-selection";
@@ -46,14 +46,14 @@ export const onMenuItemSelect = (editor, key, cellId) => {
 function addColumnBefore(editor, cellId) {
   if (!cellId || !isInTable(editor, cellId)) return false;
   let rect = selectedRect(editor, cellId);
-  addColumn(editor, rect, rect.left);
+  addColumn(editor, { ...rect, dir: "left" }, rect.left);
   return true;
 }
 
 function addColumnAfter(editor, cellId) {
   if (!cellId || !isInTable(editor, cellId)) return false;
   let rect = selectedRect(editor, cellId);
-  addColumn(editor, rect, rect.right);
+  addColumn(editor, { ...rect, dir: "right" }, rect.right);
   return true;
 }
 
@@ -157,68 +157,77 @@ function selectionCell(editor, cellId = null) {
 }
 
 // Add a column at the given position in a table.
-function addColumn(editor, { map, table }, col) {
-  for (let row = 0; row < map.height; row++) {
-    let index = row * map.width + col;
-    // If this position falls inside a col-spanning cell
-    if (col > 0 && col < map.width && map.map[index - 1] == map.map[index]) {
-      let pos = map.map[index],
-        [[cellNode]] = Editor.nodes(editor, {
+function addColumn(editor, { map, table, dir = "left" }, col) {
+  Editor.withoutNormalizing(editor, () => {
+    for (let row = 0; row < map.height; row++) {
+      let index = row * map.width + col;
+      // If this position falls inside a col-spanning cell
+      if (col > 0 && col < map.width && map.map[index - 1] == map.map[index]) {
+        let pos = map.map[index],
+          [[cellNode]] = Editor.nodes(editor, {
+            match: (n) => n.id === pos,
+            at: [],
+          });
+        addColSpan(editor, cellNode);
+        // Skip ahead if rowspan > 1
+        row += cellNode.rowspan - 1;
+      } else {
+        const tableCellNode = {
+          type: "table-cell",
+          id: uniqid(),
+          children: [{ text: "" }],
+        };
+        const pos = map.positionAt(row, col, table[0]);
+
+        // If the cell to-be-inserted is at the end of table-row
+        if (pos === -1) {
+          const rowEntry = Editor.node(editor, table[1].concat(row));
+          const cellPath = rowEntry[1].concat(rowEntry[0].children.length);
+          Transforms.insertNodes(editor, tableCellNode, { at: cellPath });
+          continue;
+        }
+        const [[cellNode, cellPath]] = Editor.nodes(editor, {
           match: (n) => n.id === pos,
           at: [],
         });
-      addColSpan(editor, cellNode);
-      // Skip ahead if rowspan > 1
-      row += cellNode.rowspan - 1;
-    } else {
-      const tableCellNode = {
-        type: "table-cell",
-        id: uniqid(),
-        children: [{ text: "Imma new cell" }],
-      };
-      const pos = map.positionAt(row, col, table[0]);
-
-      // If the cell to-be-inserted is at the end of table-row
-      if (pos === -1) {
-        const rowEntry = Editor.node(editor, table[1].concat(row));
-        const cellPath = rowEntry[1].concat(rowEntry[0].children.length);
         Transforms.insertNodes(editor, tableCellNode, { at: cellPath });
-        continue;
-      }
-      const [[cellNode, cellPath]] = Editor.nodes(editor, {
-        match: (n) => n.id === pos,
-        at: [],
-      });
-      Transforms.insertNodes(editor, tableCellNode, { at: cellPath });
-      let span = 1;
+        let span = 1;
 
-      while (span < (cellNode.rowspan || 1)) {
-        row++;
-        span++;
-        const beforePos = map.positionOfPreviousAt(row, col, table[0]);
+        while (span < (cellNode.rowspan || 1)) {
+          row++;
+          span++;
+          const beforePos = map.positionOfPreviousAt(row, col, table[0]);
 
-        const [[, prevPath]] = Editor.nodes(editor, {
-          at: [],
-          match: (n) => n.id === beforePos,
-        });
+          const [[, prevPath]] = Editor.nodes(editor, {
+            at: [],
+            match: (n) => n.id === beforePos,
+          });
 
-        const tempPath = cellPath.slice();
-        let [column] = tempPath.splice(-1, 1);
-        tempPath.splice(tempPath.length - 1, 1, row);
-        let insertionPath =
-          column === 0
-            ? tempPath.concat(0)
-            : tempPath.concat(prevPath[prevPath.length - 1] + 1);
+          const tempPath = cellPath.slice();
+          let [column] = tempPath.splice(-1, 1);
+          tempPath.splice(tempPath.length - 1, 1, row);
+          let insertionPath =
+            column === 0
+              ? tempPath.concat(0)
+              : tempPath.concat(prevPath[prevPath.length - 1] + 1);
 
-        Transforms.insertNodes(editor, tableCellNode, { at: insertionPath });
+          Transforms.insertNodes(editor, tableCellNode, {
+            at: insertionPath,
+          });
+        }
       }
     }
-  }
-  const [newTable] = Editor.nodes(editor, {
-    match: (n) => n.id === table[0].id,
-    at: [],
+    const [newTable] = Editor.nodes(editor, {
+      match: (n) => n.id === table[0].id,
+      at: [],
+    });
+    const columnWidths = newTable[0].columnWidths.slice();
+    const currWidth = columnWidths[col] / 2;
+    columnWidths.splice(dir === "left" ? col : col - 1, 1, currWidth);
+    columnWidths.splice(col, 0, currWidth);
+    Transforms.setNodes(editor, { columnWidths }, { at: newTable[1] });
+    TableMap.recalculateTableMap(newTable[0]);
   });
-  TableMap.recalculateTableMap(newTable[0]);
 }
 
 function addRow(editor, { map, table }, row) {
@@ -290,15 +299,23 @@ function removeColumn(editor, { map, table }, col) {
     }
     row += cellNode.rowspan || 1;
   }
+
+  const [newTable] = Editor.nodes(editor, {
+    match: (n) => n.id === table[0].id,
+    at: [],
+  });
+  const columnWidths = newTable[0].columnWidths.slice();
+  const newWidth =
+    columnWidths[col] +
+    (col === map.width - 1 ? columnWidths[col - 1] : columnWidths[col + 1]);
+  col === map.width - 1
+    ? columnWidths.splice(col - 1, 2, newWidth)
+    : columnWidths.splice(col, 2, newWidth);
+  Transforms.setNodes(editor, { columnWidths }, { at: newTable[1] });
+  TableMap.recalculateTableMap(newTable[0]);
 }
 
 function removeRow(editor, { map, table }, row) {
-  let rowPos = 0;
-  for (let i = 0; i < row; i++) {
-    const [rowNode] = Editor.node(editor, table[1].concat(i));
-    rowPos += rowNode.children.length;
-  }
-
   let cellNode, cellPath;
   for (let col = 0, index = row * map.width; col < map.width; col++, index++) {
     let pos = map.map[index];
@@ -446,7 +463,9 @@ export function splitCell(editor, cellId) {
   if (cellNode?.colspan == 1 && cellNode?.rowspan == 1) {
     return false;
   }
+
   let rect = selectedRect(editor, cellId);
+  let insertionPath;
   for (let row = rect.top; row < rect.bottom; row++) {
     for (let col = rect.left, i = 0; col < rect.right; col++, i++) {
       if (col == rect.left && row == rect.top) continue;
@@ -454,17 +473,19 @@ export function splitCell(editor, cellId) {
         ...cellNode,
         rowspan: 1,
         colspan: 1,
-        children: [{ text: "New Cell" }],
+        children: [{ text: "" }],
         id: uniqid(),
       };
 
-      const insertionPath = rect.table[1].concat(row).concat(col);
+      insertionPath = rect.table[1].concat(row).concat(col);
       Transforms.insertNodes(editor, newCell, { at: insertionPath });
     }
   }
 
   if (cellNode.rowspan > 1) setAttr(editor, cellNode.id, "rowspan", 1);
   if (cellNode.colspan > 1) setAttr(editor, cellNode.id, "colspan", 1);
+
+  // TODO: Handle selection
 
   return true;
 }

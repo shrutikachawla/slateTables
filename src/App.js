@@ -43,6 +43,7 @@ const initialValue = [
   {
     type: "table",
     id: uniqid(),
+    columnWidths: [],
     children: [
       {
         type: "table-row",

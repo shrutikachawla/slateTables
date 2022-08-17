@@ -7,13 +7,15 @@ import TableCellElement from "./elements/table-cell";
 import TableRowElement from "./elements/table-row";
 import { Toolbar } from "./Toolbar";
 import { onKeyDown } from "./onKeyDown";
+import { withTables } from "./withTable";
+import { withHistory } from "slate-history";
 
 function renderElement(props) {
   const { attributes, children, element } = props;
   switch (element.type) {
     case "table":
       return (
-        <TableElement slateElement={element} attributes={attributes}>
+        <TableElement element={element} attributes={attributes}>
           {children}
         </TableElement>
       );
@@ -49,7 +51,10 @@ function renderLeaf(props) {
 
 export function Editor(props) {
   const { value, onChange, ...other } = props;
-  const editor = React.useMemo(() => withReact(createEditor()), []);
+  const editor = React.useMemo(
+    () => withTables(withHistory(withReact(createEditor()))),
+    []
+  );
   window.editor = editor;
   return (
     <Slate editor={editor} value={value} onChange={onChange}>

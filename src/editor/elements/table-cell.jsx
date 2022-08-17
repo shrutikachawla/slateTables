@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import styles from "./table-cell.less";
+import styles from "./styles.less";
 import { blendColors } from "../../utils/blendColors";
 import { ReactEditor, useSlate } from "slate-react";
 import { handleMouseDown } from "../../tables/onMouseDown";
