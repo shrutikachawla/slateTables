@@ -1,12 +1,16 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from "react";
-import { useSlate } from "slate-react";
-import { Transforms } from "slate";
+import { useSelected, useSlate } from "slate-react";
+import { Editor, Path, Point, Range, Transforms } from "slate";
 import styles from "./styles.less";
 import { TableMap } from "../../tables/table-map";
+import croveEmitter from "../../utils/crove";
+import { TableSelection } from "../../tables/table-selection";
 
 export default function TableElement({ attributes, element, children }) {
   const editor = useSlate();
+  const isTableUnderSelection = useSelected();
+  const [tableSelected, setTableSelected] = useState(false);
   const [currentColumn, setCurrentColumn] = useState(0);
   const [draggingColumn, setDraggingColumn] = useState(false);
   const [columnWindows, setColumnWindows] = useState([0]);
@@ -40,7 +44,6 @@ export default function TableElement({ attributes, element, children }) {
 
   useEffect(() => {
     setColumnWindows(getColumnWindows);
-    console.log("Changing column widths", columnWidths);
   }, [JSON.stringify(columnWidths)]);
 
   function eventListener(e) {
@@ -91,12 +94,47 @@ export default function TableElement({ attributes, element, children }) {
     return _columnWindows.length - 1;
   };
 
+  useEffect(() => {
+    const { selection } = editor;
+    const { tableSelection } = editor;
+    if (isTableUnderSelection) {
+      const [[, tablePath]] = Editor.nodes(editor, {
+        match: (n) => n.id === element.id,
+      });
+      const tableEdges = Editor.edges(editor, tablePath);
+      const selectionContainsSingleTable = Range.equals(selection, {
+        anchor: tableEdges[0],
+        focus: tableEdges[1],
+      });
+      if (
+        (Point.isBefore(selection.anchor, tableEdges[0]) ||
+          Point.isAfter(selection.focus, tableEdges[1])) &&
+        !selectionContainsSingleTable
+      ) {
+        new TableSelection(editor, null);
+        setTableSelected(true);
+        return;
+      }
+      if (!!tableSelection && Point.equals(selection.anchor, selection.focus)) {
+        new TableSelection(editor, null);
+      }
+    }
+    setTableSelected(false);
+    if (!isTableUnderSelection && !!tableSelection) {
+      new TableSelection(editor, null);
+    }
+  }, [editor.selection]);
+
   const getColumnHoverPercentage = (index) => cumulativeColumnWidths[index];
 
   return (
     <div style={{ position: "relative" }} ref={(el) => setContainerRef(el)}>
       <table
-        style={{ width: "100%" }}
+        style={{
+          width: "100%",
+          background: tableSelected ? "#b8b8b88c" : "transparent",
+        }}
+        className={tableSelected ? styles.tableCell : styles.singleCell}
         onMouseMove={(e) => {
           if (containerRef) {
             const bounds = containerRef.getBoundingClientRect();
@@ -146,6 +184,7 @@ export default function TableElement({ attributes, element, children }) {
         onMouseDown={(e) => {
           e.preventDefault();
           setDraggingColumn(true);
+          new TableSelection(editor, null);
         }}
       />
       {draggingColumn && (

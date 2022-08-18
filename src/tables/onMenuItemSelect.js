@@ -37,6 +37,9 @@ export const onMenuItemSelect = (editor, key, cellId) => {
     case "split-cells":
       status = splitCell(editor, cellId);
       break;
+    case "delete-table":
+      status = deleteTable(editor, cellId);
+      break;
     case "default":
       new TableSelection(editor, null);
       break;
@@ -75,6 +78,16 @@ function deleteColumn(editor, cellId) {
       rect.table = Editor.node(editor, rect.table[1]);
       rect.map = TableMap.get(rect.table[0]);
     }
+  });
+  return true;
+}
+
+function deleteTable(editor, cellId) {
+  if (!cellId || !isInTable(editor, cellId)) return false;
+  let rect = selectedRect(editor, cellId);
+  Transforms.removeNodes(editor, {
+    match: (n) => n.id === rect.table[0].id,
+    at: [],
   });
   return true;
 }
